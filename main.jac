@@ -1,14 +1,14 @@
-"""Fullstack Starter - Entry Point.
-
-Imports server-side symbols and mounts the client app.
+"""
+FutureOS — Adaptive AI Life Operating System
 """
 
-import from services.appService { greet }
+import from services.appService { get_dashboard_data, get_goals, get_missions, get_agents, get_insights }
 
-cl import from .index { ClientApp }
+cl import ".styles.global.css";
 
-cl {
-    def:pub app() -> JsxElement {
-        return <ClientApp />;
-    }
+to cl:
+import from .index { ClientApp }
+
+def:pub app() -> JsxElement {
+    return <ClientApp />;
 }
