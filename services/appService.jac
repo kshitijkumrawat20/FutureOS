@@ -1,7 +1,18 @@
 import from byllm.lib { Model }
 import os;
 
-glob llm: Model = Model(model_name="gemini/gemini-1.5-flash-8b", api_key=os.environ.get("GEMINI_API_KEY", "AIzaSyBPNYCYAfipbjapX_v90cJbq39KCmfWT_4"));
+def _get_llm() -> Model {
+    try {
+        import from dotenv { load_dotenv }
+        load_dotenv();
+    } except Exception as e {
+        api_key_err: str = str(e);
+    }
+    api_key: str = os.environ.get("GEMINI_API_KEY", os.environ.get("LLM_API_KEY", ""));
+    return Model(model_name="gemini/gemini-2.0-flash-lite", api_key=api_key);
+}
+
+glob llm: Model = _get_llm();
 
 # ==== DATA NODES ====
 
