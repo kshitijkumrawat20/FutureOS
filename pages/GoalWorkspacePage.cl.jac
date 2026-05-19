@@ -1,6 +1,6 @@
 import from "@jac/runtime" { useNavigate, jacIsLoggedIn, Navigate }
 import from ..components.Sidebar { Sidebar }
-sv import from ..services.appService { Goal, Mission, get_goals, add_goal, delete_goal, update_goal_progress, get_missions, add_mission, delete_mission }
+sv import from ..services.appService { Goal, Mission, get_goals, add_goal, delete_goal, update_goal_progress, get_missions, add_mission, delete_mission, agent_generate_missions, agent_get_strategy, StrategyReport }
 
 def:pub page() -> JsxElement {
     has goals: list[Goal] = [];
@@ -17,6 +17,9 @@ def:pub page() -> JsxElement {
     has new_mission_diff: str = "Medium";
     has new_mission_xp: str = "100";
     has saving: bool = False;
+    has ai_generating: bool = False;
+    has ai_status: str = "";
+    has strategy: StrategyReport | None = None;
     has error: str = "";
 
     navigate = useNavigate();
@@ -112,6 +115,7 @@ def:pub page() -> JsxElement {
         e.preventDefault();
         if not new_goal_title { return; }
         saving = True;
+        ai_generating = False;
         error = "";
         try {
             title: str = new_goal_title;
@@ -125,8 +129,23 @@ def:pub page() -> JsxElement {
             new_goal_title = "";
             new_goal_desc = "";
             show_add_goal = False;
+            saving = False;
+            ai_generating = True;
+            ai_status = "🤖 Planner Agent is generating your missions...";
+            goal_id_for_ai: str = jid(g);
+            goal_title_for_ai: str = title;
+            goal_desc_for_ai: str = description;
+            goal_timeline_for_ai: str = timeline;
+            ai_missions = await agent_generate_missions(goal_id_for_ai, goal_title_for_ai, goal_desc_for_ai, goal_timeline_for_ai);
+            missions = missions + ai_missions;
+            ai_status = "✅ AI generated " + str(len(ai_missions)) + " missions for your goal!";
+            ai_generating = False;
+            strat = await agent_get_strategy(goal_id_for_ai);
+            strategy = strat;
         } except Exception as ex {
-            error = "Failed to add goal. Please try again.";
+            error = "Error: " + str(ex);
+            ai_generating = False;
+            saving = False;
         }
         saving = False;
     }
@@ -206,6 +225,28 @@ def:pub page() -> JsxElement {
             selected_idx = idx;
         }
         return do_select;
+    }
+
+    def make_ai_generate(gid: str, gtitle: str, gdesc: str, gtimeline: str) -> Any {
+        async def do_generate(e: Any) -> None {
+            ai_generating = True;
+            ai_status = "🤖 Planner Agent generating missions...";
+            try {
+                goal_id: str = gid;
+                goal_title: str = gtitle;
+                goal_description: str = gdesc;
+                goal_timeline: str = gtimeline;
+                new_missions = await agent_generate_missions(goal_id, goal_title, goal_description, goal_timeline);
+                missions = missions + new_missions;
+                ai_status = "✅ Generated " + str(len(new_missions)) + " AI missions!";
+                strat = await agent_get_strategy(goal_id);
+                strategy = strat;
+            } except Exception as ex {
+                ai_status = "❌ AI generation failed: " + str(ex);
+            }
+            ai_generating = False;
+        }
+        return do_generate;
     }
 
     def make_delete_goal(gid: str) -> Any {
@@ -342,15 +383,31 @@ def:pub page() -> JsxElement {
 
                                         <div className="flex items-center justify-between mb-3">
                                             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Missions</h3>
-                                            <button className="btn btn-ghost text-xs" onClick={open_add_mission}>+ Add Mission</button>
+                                            <div className="flex gap-2">
+                                                <button className="btn btn-accent text-xs py-1.5 px-3" onClick={make_ai_generate(jid(goals[selected_idx]), goals[selected_idx].title, goals[selected_idx].description, goals[selected_idx].timeline)}>
+                                                    🤖 AI Generate
+                                                </button>
+                                                <button className="btn btn-ghost text-xs" onClick={open_add_mission}>+ Manual</button>
+                                            </div>
                                         </div>
+
+                                        {ai_generating and (
+                                            <div className="flex items-center gap-3 p-3 rounded-xl mb-3" style={{"background": "rgba(139,92,246,0.05)", "border": "1px solid rgba(139,92,246,0.2)"}}>
+                                                <div className="flex gap-1">
+                                                    <span className="typing-dot"></span>
+                                                    <span className="typing-dot"></span>
+                                                    <span className="typing-dot"></span>
+                                                </div>
+                                                <p className="text-xs text-muted-foreground">{ai_status}</p>
+                                            </div>
+                                        )}
 
                                         {show_add_mission and (
                                             <div className="p-4 rounded-xl mb-4" style={{"background": "rgba(59,130,246,0.05)", "border": "1px solid rgba(59,130,246,0.15)"}}>
                                                 <form onSubmit={submit_add_mission}>
                                                     <div className="mb-3">
-                                                        <label className="label">Mission Title *</label>
-                                                        <input className="input" type="text" value={new_mission_title} onChange={handle_mission_title} placeholder="e.g. Solve 3 LeetCode problems" required={True} />
+                                                        <label className="label">Mission Title</label>
+                                                        <input className="input" type="text" value={new_mission_title} onChange={handle_mission_title} placeholder="e.g. Solve 3 LeetCode problems" />
                                                     </div>
                                                     <div className="grid grid-cols-3 gap-3 mb-3">
                                                         <div>
@@ -404,7 +461,7 @@ def:pub page() -> JsxElement {
                                 </div>
 
                                 <div>
-                                    <div className="card p-5">
+                                    <div className="card p-5 mb-4">
                                         <h2 className="text-base font-semibold text-foreground mb-4">All Goals</h2>
                                         <div className="flex flex-col gap-3">
                                             {[
@@ -427,6 +484,60 @@ def:pub page() -> JsxElement {
                                         </div>
                                         <button className="btn btn-ghost w-full mt-4 text-xs" onClick={open_add_goal}>+ Add Goal</button>
                                     </div>
+
+                                    {ai_generating and (
+                                        <div className="card p-4 mb-4" style={{"border": "1px solid rgba(139,92,246,0.3)"}}>
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex gap-1">
+                                                    <span className="typing-dot"></span>
+                                                    <span className="typing-dot"></span>
+                                                    <span className="typing-dot"></span>
+                                                </div>
+                                                <p className="text-xs text-muted-foreground">{ai_status}</p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {ai_status and not ai_generating and (
+                                        <div className="card p-4 mb-4" style={{"border": "1px solid rgba(16,185,129,0.3)", "background": "rgba(16,185,129,0.05)"}}>
+                                            <p className="text-xs text-green-400">{ai_status}</p>
+                                        </div>
+                                    )}
+
+                                    {strategy is not None and (
+                                        <div className="card p-5">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <span style={{"fontSize": "14px"}}>🤖</span>
+                                                <h2 className="text-sm font-semibold text-foreground">AI Strategy</h2>
+                                                <span className="badge-purple text-xs">Planner Agent</span>
+                                            </div>
+                                            <div className="mb-3">
+                                                <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">This Week</div>
+                                                <p className="text-xs text-foreground leading-relaxed">{strategy.weekly_focus}</p>
+                                            </div>
+                                            <div className="mb-3">
+                                                <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Milestones</div>
+                                                <div className="flex flex-col gap-1">
+                                                    {[
+                                                        <div key={str(i)} className="flex items-start gap-2">
+                                                            <span className="text-xs" style={{"color": "#3b82f6"}}>→</span>
+                                                            <span className="text-xs text-muted-foreground">{str(strategy.milestones[i])}</span>
+                                                        </div>
+                                                        for i in range(len(strategy.milestones))
+                                                    ]}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Resources</div>
+                                                <div className="flex flex-col gap-1">
+                                                    {[
+                                                        <div key={str(i)} className="text-xs text-muted-foreground">📚 {str(strategy.key_resources[i])}</div>
+                                                        for i in range(len(strategy.key_resources))
+                                                    ]}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}

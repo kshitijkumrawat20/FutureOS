@@ -1,11 +1,12 @@
 import from "@jac/runtime" { useNavigate, jacIsLoggedIn, Navigate }
 import from ..components.Sidebar { Sidebar }
-sv import from ..services.appService { Goal, Mission, get_missions, toggle_mission, get_stats, get_goals }
+sv import from ..services.appService { Goal, Mission, InsightReport, get_missions, toggle_mission, get_stats, get_goals, agent_get_insights }
 
 def:pub page() -> JsxElement {
     has missions: list[Mission] = [];
     has goals: list[Goal] = [];
     has stats: dict = {};
+    has insights: InsightReport | None = None;
     has loading: bool = True;
     has error: str = "";
 
@@ -21,6 +22,10 @@ def:pub page() -> JsxElement {
                 missions = await get_missions();
                 goals = await get_goals();
                 stats = await get_stats();
+                if len(goals) > 0 {
+                    first_goal_id: str = jid(goals[0]);
+                    insights = await agent_get_insights(first_goal_id);
+                }
             } except Exception as ex {
                 error = "Failed to load data";
             }
@@ -211,6 +216,32 @@ def:pub page() -> JsxElement {
                             </div>
 
                             <div>
+                                {insights is not None and (
+                                    <div className="card p-5 mb-4">
+                                        <div className="flex items-center gap-2 mb-4">
+                                            <span style={{"fontSize": "14px"}}>🧠</span>
+                                            <h2 className="text-base font-semibold text-foreground">AI Insights</h2>
+                                            <span className="badge-purple text-xs">Live</span>
+                                        </div>
+                                        <div className="flex flex-col gap-2 mb-3">
+                                            {[
+                                                <div key={str(i)} className="flex items-start gap-2 p-2 rounded-lg" style={{"background": "rgba(59,130,246,0.04)"}}>
+                                                    <span className="text-xs">💡</span>
+                                                    <p className="text-xs text-muted-foreground leading-relaxed">{str(insights.insights[i])}</p>
+                                                </div>
+                                                for i in range(len(insights.insights))
+                                            ]}
+                                        </div>
+                                        <div className="p-3 rounded-xl" style={{"background": "rgba(16,185,129,0.05)", "border": "1px solid rgba(16,185,129,0.15)"}}>
+                                            <p className="text-xs text-green-400 leading-relaxed">{insights.coach_message}</p>
+                                        </div>
+                                        <div className="flex justify-between mt-3 text-xs">
+                                            <span className="text-muted-foreground">Predicted: <span className="text-foreground">{insights.predicted_completion}</span></span>
+                                            <span className={"font-medium " + ("text-green-400" if insights.risk_level == "Low" else ("text-yellow-400" if insights.risk_level == "Medium" else "text-red-400"))}>{insights.risk_level} Risk</span>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="card p-5">
                                     <div className="flex items-center justify-between mb-4">
                                         <h2 className="text-base font-semibold text-foreground">Agent Activity</h2>

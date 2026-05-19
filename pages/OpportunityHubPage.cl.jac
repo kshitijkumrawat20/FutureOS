@@ -1,8 +1,13 @@
 import from "@jac/runtime" { useNavigate, jacIsLoggedIn, Navigate }
 import from ..components.Sidebar { Sidebar }
+sv import from ..services.appService { Goal, OpportunityReport, get_goals, agent_get_opportunities }
 
 def:pub page() -> JsxElement {
     has active_tab: str = "internships";
+    has goals: list[Goal] = [];
+    has opportunities: OpportunityReport | None = None;
+    has loading: bool = True;
+    has error: str = "";
 
     navigate = useNavigate();
 
@@ -10,33 +15,47 @@ def:pub page() -> JsxElement {
         return <Navigate to="/login" replace={True} />;
     }
 
-    def set_internships(e: MouseEvent) -> None {
+    async can with entry {
+        if jacIsLoggedIn() {
+            try {
+                goals = await get_goals();
+                if len(goals) > 0 {
+                    first_id: str = jid(goals[0]);
+                    opportunities = await agent_get_opportunities(first_id);
+                }
+            } except Exception as ex {
+                error = "Failed to load opportunities";
+            }
+            loading = False;
+        }
+    }
+
+    async def do_set_internships() -> None {
+        goals = await get_goals();
         active_tab = "internships";
     }
 
-    def set_resources(e: MouseEvent) -> None {
-        active_tab = "resources";
+    async def do_set_courses() -> None {
+        goals = await get_goals();
+        active_tab = "courses";
     }
 
-    def set_projects(e: MouseEvent) -> None {
+    async def do_set_projects() -> None {
+        goals = await get_goals();
         active_tab = "projects";
     }
 
-    internships = [
-        {"company": "Google", "role": "ML Engineer Intern", "location": "Mountain View, CA", "match": 94, "deadline": "Dec 1", "tags": ["ML", "Python", "TensorFlow"]},
-        {"company": "Meta", "role": "AI Research Intern", "location": "Menlo Park, CA", "match": 88, "deadline": "Dec 15", "tags": ["PyTorch", "NLP", "Research"]},
-        {"company": "OpenAI", "role": "Software Engineer Intern", "location": "San Francisco, CA", "match": 82, "deadline": "Jan 5", "tags": ["Python", "LLMs", "APIs"]},
-        {"company": "Anthropic", "role": "ML Safety Intern", "location": "Remote", "match": 79, "deadline": "Jan 20", "tags": ["Safety", "ML", "Research"]},
-        {"company": "Hugging Face", "role": "ML Engineer Intern", "location": "Remote", "match": 91, "deadline": "Dec 10", "tags": ["Transformers", "NLP", "Open Source"]}
-    ];
+    def set_internships(e: MouseEvent) -> None {
+        do_set_internships();
+    }
 
-    resources = [
-        {"title": "Fast.ai Deep Learning Course", "type": "Course", "rating": 4.9, "time": "40h", "tag": "ML"},
-        {"title": "System Design Interview", "type": "Book", "rating": 4.8, "time": "20h", "tag": "System Design"},
-        {"title": "LeetCode Top 150", "type": "Practice", "rating": 4.7, "time": "60h", "tag": "DSA"},
-        {"title": "Andrej Karpathy's Neural Nets", "type": "Video", "rating": 5.0, "time": "15h", "tag": "Deep Learning"},
-        {"title": "Designing ML Systems", "type": "Book", "rating": 4.6, "time": "25h", "tag": "MLOps"}
-    ];
+    def set_courses(e: MouseEvent) -> None {
+        do_set_courses();
+    }
+
+    def set_projects(e: MouseEvent) -> None {
+        do_set_projects();
+    }
 
     return (
         <div className="page">
@@ -49,80 +68,122 @@ def:pub page() -> JsxElement {
                     </div>
                     <div className="badge-purple">
                         <span>🚀</span>
-                        <span>47 new matches</span>
+                        <span>AI Research Agent</span>
                     </div>
                 </div>
 
-                <div className="flex gap-2 mb-6">
-                    <button className={"btn text-sm " + ("btn-primary" if active_tab == "internships" else "btn-ghost")} onClick={set_internships}>
-                        🏢 Internships
-                    </button>
-                    <button className={"btn text-sm " + ("btn-primary" if active_tab == "resources" else "btn-ghost")} onClick={set_resources}>
-                        📚 Resources
-                    </button>
-                    <button className={"btn text-sm " + ("btn-primary" if active_tab == "projects" else "btn-ghost")} onClick={set_projects}>
-                        🛠 Projects
-                    </button>
-                </div>
+                {loading and (
+                    <div className="flex items-center justify-center py-20">
+                        <div className="text-center">
+                            <div className="flex gap-2 justify-center mb-3">
+                                <span className="typing-dot"></span>
+                                <span className="typing-dot"></span>
+                                <span className="typing-dot"></span>
+                            </div>
+                            <p className="text-muted-foreground text-sm">Research Agent scanning opportunities...</p>
+                        </div>
+                    </div>
+                )}
 
-                {active_tab == "internships" and (
-                    <div className="flex flex-col gap-4">
-                        {[
-                            <div key={str(i)} className="card p-5 hover:border-primary transition-colors">
-                                <div className="flex items-start justify-between">
-                                    <div className="flex items-start gap-4">
-                                        <div className="w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold" style={{"background": "rgba(59,130,246,0.1)", "border": "1px solid rgba(59,130,246,0.2)"}}>
-                                            {str(internships[i]["company"])[0]}
-                                        </div>
-                                        <div>
-                                            <div className="text-base font-semibold text-foreground">{internships[i]["role"]}</div>
-                                            <div className="text-sm text-muted-foreground">{internships[i]["company"]} · {internships[i]["location"]}</div>
-                                            <div className="flex gap-1 mt-2">
-                                                {[
-                                                    <span key={str(j)} className="badge-blue text-xs">{tag}</span>
-                                                    for (j, tag) in enumerate(list(internships[i]["tags"]))
-                                                ]}
+                {not loading and len(goals) == 0 and (
+                    <div className="card p-12 text-center">
+                        <div className="text-5xl mb-4">🚀</div>
+                        <h2 className="text-xl font-semibold text-foreground mb-2">No goals yet</h2>
+                        <p className="text-muted-foreground text-sm mb-6">Add a goal first — the Research Agent will find personalized opportunities for you.</p>
+                        <button className="btn btn-primary" onClick={set_internships}>Go to Goals →</button>
+                    </div>
+                )}
+
+                {not loading and len(goals) > 0 and opportunities is None and (
+                    <div className="card p-12 text-center">
+                        <div className="text-5xl mb-4">🔍</div>
+                        <h2 className="text-xl font-semibold text-foreground mb-2">Scanning opportunities...</h2>
+                        <p className="text-muted-foreground text-sm">The Research Agent is analyzing your goal and finding the best opportunities.</p>
+                    </div>
+                )}
+
+                {not loading and opportunities is not None and (
+                    <div>
+                        <div className="flex gap-2 mb-6">
+                            <button className={"btn text-sm " + ("btn-primary" if active_tab == "internships" else "btn-ghost")} onClick={set_internships}>
+                                🏢 Internships & Jobs
+                            </button>
+                            <button className={"btn text-sm " + ("btn-primary" if active_tab == "courses" else "btn-ghost")} onClick={set_courses}>
+                                📚 Courses
+                            </button>
+                            <button className={"btn text-sm " + ("btn-primary" if active_tab == "projects" else "btn-ghost")} onClick={set_projects}>
+                                🛠 Projects
+                            </button>
+                        </div>
+
+                        {active_tab == "internships" and (
+                            <div className="flex flex-col gap-4">
+                                {[
+                                    <div key={str(i)} className="card p-5">
+                                        <div className="flex items-start gap-4">
+                                            <div className="w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold" style={{"background": "rgba(59,130,246,0.1)", "border": "1px solid rgba(59,130,246,0.2)"}}>
+                                                🏢
                                             </div>
+                                            <div className="flex-1">
+                                                <div className="text-base font-semibold text-foreground mb-1">{str(opportunities.internships[i])}</div>
+                                                <div className="flex gap-2 mt-2">
+                                                    <span className="badge-blue text-xs">AI Matched</span>
+                                                    <span className="badge-green text-xs">Relevant</span>
+                                                </div>
+                                            </div>
+                                            <button className="btn btn-primary text-xs py-1.5 px-3">Apply →</button>
                                         </div>
                                     </div>
-                                    <div className="text-right flex-shrink-0">
-                                        <div className="text-2xl font-bold text-gradient-blue">{str(internships[i]["match"]) + "%"}</div>
-                                        <div className="text-xs text-muted-foreground">match</div>
-                                        <div className="text-xs text-yellow-400 mt-1">Due {internships[i]["deadline"]}</div>
-                                        <button className="btn btn-primary text-xs mt-2 py-1.5 px-3">Apply Now</button>
+                                    for i in range(len(opportunities.internships))
+                                ]}
+                            </div>
+                        )}
+
+                        {active_tab == "courses" and (
+                            <div className="grid grid-cols-2 gap-4">
+                                {[
+                                    <div key={str(i)} className="card p-5">
+                                        <div className="text-2xl mb-3">📚</div>
+                                        <div className="text-sm font-semibold text-foreground mb-2">{str(opportunities.courses[i])}</div>
+                                        <div className="flex items-center justify-between mt-3">
+                                            <span className="badge-purple text-xs">AI Curated</span>
+                                            <button className="btn btn-ghost text-xs py-1 px-2">Start →</button>
+                                        </div>
                                     </div>
+                                    for i in range(len(opportunities.courses))
+                                ]}
+                            </div>
+                        )}
+
+                        {active_tab == "projects" and (
+                            <div className="grid grid-cols-2 gap-4">
+                                {[
+                                    <div key={str(i)} className="card p-5">
+                                        <div className="text-2xl mb-3">🛠</div>
+                                        <div className="text-sm font-semibold text-foreground mb-2">{str(opportunities.projects[i])}</div>
+                                        <div className="flex items-center justify-between mt-3">
+                                            <span className="badge-cyan text-xs">Project Idea</span>
+                                            <button className="btn btn-ghost text-xs py-1 px-2">Build →</button>
+                                        </div>
+                                    </div>
+                                    for i in range(len(opportunities.projects))
+                                ]}
+                            </div>
+                        )}
+
+                        {opportunities.networking and (
+                            <div className="card p-5 mt-6">
+                                <h2 className="text-base font-semibold text-foreground mb-4">🤝 Networking Opportunities</h2>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {[
+                                        <div key={str(i)} className="p-3 rounded-xl" style={{"background": "rgba(139,92,246,0.05)", "border": "1px solid rgba(139,92,246,0.1)"}}>
+                                            <p className="text-xs text-muted-foreground">{str(opportunities.networking[i])}</p>
+                                        </div>
+                                        for i in range(len(opportunities.networking))
+                                    ]}
                                 </div>
                             </div>
-                            for i in range(len(internships))
-                        ]}
-                    </div>
-                )}
-
-                {active_tab == "resources" and (
-                    <div className="grid grid-cols-2 gap-4">
-                        {[
-                            <div key={str(i)} className="card p-5">
-                                <div className="flex items-start justify-between mb-3">
-                                    <span className="badge-purple">{resources[i]["type"]}</span>
-                                    <span className="badge-blue">{resources[i]["tag"]}</span>
-                                </div>
-                                <h3 className="text-sm font-semibold text-foreground mb-2">{resources[i]["title"]}</h3>
-                                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                    <span>⭐ {str(resources[i]["rating"])}</span>
-                                    <span>⏱ {resources[i]["time"]}</span>
-                                    <button className="btn btn-ghost text-xs py-1 px-2">Start →</button>
-                                </div>
-                            </div>
-                            for i in range(len(resources))
-                        ]}
-                    </div>
-                )}
-
-                {active_tab == "projects" and (
-                    <div className="card p-8 text-center">
-                        <div className="text-4xl mb-4">🛠</div>
-                        <h3 className="text-lg font-semibold text-foreground mb-2">Project Ideas Coming Soon</h3>
-                        <p className="text-muted-foreground text-sm">AI is generating personalized project ideas based on your goals and skill gaps.</p>
+                        )}
                     </div>
                 )}
             </div>
