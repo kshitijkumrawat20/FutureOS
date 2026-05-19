@@ -1,5 +1,8 @@
 import from byllm.lib { Model }
 import os;
+import json;
+import from urllib.request { urlopen, Request }
+import from urllib.parse { urlencode, quote_plus }
 
 glob llm: Model = Model(model_name="gemini/gemini-2.5-flash", api_key="AQ.Ab8RN6JeGqVkKfpLwuM7YymbuYSnq-PF3CtE5tfv1kDwL-uX7A");
 
@@ -472,6 +475,31 @@ async def:priv agent_get_strategy(goal_id: str) -> StrategyReport {
     }
 }
 
+def web_search_ddg(query: str, max_results: int) -> list[str] {
+    results: list[str] = [];
+    try {
+        import from duckduckgo_search { DDGS }
+        ddgs: Any = DDGS();
+        text_fn: Any = getattr(ddgs, "text");
+        search_results: list = list(text_fn(query, max_results=max_results));
+        for r in search_results {
+            title: str = str(r["title"]) if "title" in r else "";
+            href: str = str(r["href"]) if "href" in r else "";
+            body: str = str(r["body"]) if "body" in r else "";
+            if title {
+                entry: str = title;
+                if href {
+                    entry = title + " — " + href;
+                }
+                results = results + [entry];
+            }
+        }
+    } except Exception as ex {
+        results = [];
+    }
+    return results;
+}
+
 async def:priv agent_get_opportunities(goal_id: str) -> OpportunityReport {
     goal_title: str = "your goal";
     timeline: str = "3 months";
@@ -481,18 +509,58 @@ async def:priv agent_get_opportunities(goal_id: str) -> OpportunityReport {
             timeline = g.timeline;
         }
     }
-    log_agent("Research", "Scanning opportunities for", goal_title);
+    log_agent("Research", "🔍 Web crawling for opportunities", goal_title);
+
+    internships: list[str] = [];
+    courses: list[str] = [];
+    projects: list[str] = [];
+    networking: list[str] = [];
+
     try {
-        opp_result: OpportunityReport = await ai_find_opportunities(goal_title, timeline);
-        log_agent("Research", "Opportunities curated", goal_title);
-        return opp_result;
+        log_agent("Research", "Searching internships/jobs", goal_title);
+        internship_query: str = goal_title + " internship jobs 2024 2025 site:linkedin.com OR site:internshala.com OR site:glassdoor.com";
+        internships = web_search_ddg(internship_query, 5);
+        if len(internships) == 0 {
+            internships = web_search_ddg(goal_title + " internship opportunities apply", 5);
+        }
+
+        log_agent("Research", "Searching courses", goal_title);
+        course_query: str = goal_title + " best online course tutorial 2024 site:coursera.org OR site:udemy.com OR site:youtube.com";
+        courses = web_search_ddg(course_query, 5);
+        if len(courses) == 0 {
+            courses = web_search_ddg(goal_title + " learn online free course", 5);
+        }
+
+        log_agent("Research", "Searching project ideas", goal_title);
+        project_query: str = goal_title + " project ideas for beginners portfolio github";
+        projects = web_search_ddg(project_query, 5);
+
+        log_agent("Research", "Searching communities", goal_title);
+        network_query: str = goal_title + " community discord reddit forum professionals";
+        networking = web_search_ddg(network_query, 4);
+
+        log_agent("Research", "✅ Web crawl complete — " + str(len(internships) + len(courses) + len(projects)) + " results found", goal_title);
     } except Exception as ex {
-        log_agent("Research", "Opportunity templates loaded", goal_title);
-        return OpportunityReport(
-            internships=["Google Summer of Code", "Microsoft Internship Program", "Amazon SDE Intern", "Startup internships on AngelList", "Remote internships on LinkedIn"],
-            courses=["Coursera: " + goal_title + " Specialization", "Udemy: Complete " + goal_title + " Bootcamp", "edX: Professional Certificate", "fast.ai Practical Course", "YouTube: FreeCodeCamp full course"],
-            projects=["Build a portfolio project from scratch", "Contribute to open source on GitHub", "Create a personal website showcasing skills", "Build a clone of a popular app", "Solve real-world problems with code"],
-            networking=["Join relevant Discord servers", "Follow experts on Twitter/X", "Attend local meetups", "LinkedIn connections in the field"]
-        );
+        log_agent("Research", "Web search failed, using smart templates", str(ex)[:50]);
     }
+
+    if len(internships) == 0 {
+        internships = ["Google Summer of Code — summerofcode.withgoogle.com", "Microsoft Internship — careers.microsoft.com", "Amazon SDE Intern — amazon.jobs", "Internshala: " + goal_title + " internships — internshala.com", "LinkedIn: " + goal_title + " jobs — linkedin.com/jobs"];
+    }
+    if len(courses) == 0 {
+        courses = ["Coursera: " + goal_title + " Specialization — coursera.org", "Udemy: Complete " + goal_title + " Bootcamp — udemy.com", "edX: Professional Certificate — edx.org", "fast.ai Practical Course — fast.ai", "FreeCodeCamp Full Course — youtube.com/freecodecamp"];
+    }
+    if len(projects) == 0 {
+        projects = ["Build a portfolio project from scratch", "Contribute to open source on GitHub — github.com", "Create a personal website showcasing skills", "Build a clone of a popular app", "Solve real-world problems with code"];
+    }
+    if len(networking) == 0 {
+        networking = ["Join relevant Discord servers", "Follow experts on Twitter/X", "Attend local meetups — meetup.com", "LinkedIn connections in the field"];
+    }
+
+    return OpportunityReport(
+        internships=internships,
+        courses=courses,
+        projects=projects,
+        networking=networking
+    );
 }

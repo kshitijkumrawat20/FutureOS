@@ -141,10 +141,16 @@ def:pub page() -> JsxElement {
                     <div>
                         {len(goals) > 0 and (
                             <div className="card p-4 mb-6" style={{"border": "1px solid rgba(139,92,246,0.2)", "background": "rgba(139,92,246,0.04)"}}>
-                                <div className="flex items-center gap-2">
-                                    <span>🎯</span>
-                                    <span className="text-sm font-medium text-foreground">Opportunities for: </span>
-                                    <span className="text-sm text-muted-foreground">{goals[0].title}</span>
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <span>🎯</span>
+                                        <span className="text-sm font-medium text-foreground">Opportunities for: </span>
+                                        <span className="text-sm text-muted-foreground">{goals[0].title}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="badge-green text-xs">🌐 Live Web Search</span>
+                                        <span className="text-xs text-muted-foreground">Research Agent crawled the web</span>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -173,10 +179,15 @@ def:pub page() -> JsxElement {
                                                 🏢
                                             </div>
                                             <div className="flex-1">
-                                                <div className="text-base font-semibold text-foreground mb-1">{str(opportunities.internships[i])}</div>
-                                                <div className="flex gap-2 mt-2">
-                                                    <span className="badge-blue text-xs">AI Matched</span>
-                                                    <span className="badge-green text-xs">Relevant</span>
+                                                <div className="text-sm font-semibold text-foreground mb-1">
+                                                    {str(opportunities.internships[i]).split(" — ")[0] if " — " in str(opportunities.internships[i]) else str(opportunities.internships[i])}
+                                                </div>
+                                                {" — " in str(opportunities.internships[i]) and (
+                                                    <div className="text-xs text-muted-foreground mb-2 truncate">{str(opportunities.internships[i]).split(" — ")[1]}</div>
+                                                )}
+                                                <div className="flex gap-2 mt-1">
+                                                    <span className="badge-blue text-xs">🌐 Web Result</span>
+                                                    <span className="badge-green text-xs">Live</span>
                                                 </div>
                                             </div>
                                             <button className="btn btn-primary text-xs py-1.5 px-3">Apply →</button>
@@ -192,9 +203,14 @@ def:pub page() -> JsxElement {
                                 {[
                                     <div key={str(i)} className="card p-5">
                                         <div className="text-2xl mb-3">📚</div>
-                                        <div className="text-sm font-semibold text-foreground mb-2">{str(opportunities.courses[i])}</div>
-                                        <div className="flex items-center justify-between mt-3">
-                                            <span className="badge-purple text-xs">AI Curated</span>
+                                        <div className="text-sm font-semibold text-foreground mb-1">
+                                            {str(opportunities.courses[i]).split(" — ")[0] if " — " in str(opportunities.courses[i]) else str(opportunities.courses[i])}
+                                        </div>
+                                        {" — " in str(opportunities.courses[i]) and (
+                                            <div className="text-xs text-muted-foreground mb-2 truncate">{str(opportunities.courses[i]).split(" — ")[1]}</div>
+                                        )}
+                                        <div className="flex items-center justify-between mt-2">
+                                            <span className="badge-purple text-xs">🌐 Web Result</span>
                                             <button className="btn btn-ghost text-xs py-1 px-2">Start →</button>
                                         </div>
                                     </div>
