@@ -1,12 +1,13 @@
 import from "@jac/runtime" { useNavigate, jacIsLoggedIn, Navigate }
 import from ..components.Sidebar { Sidebar }
-sv import from ..services.appService { Goal, Mission, InsightReport, get_missions, toggle_mission, get_stats, get_goals, agent_get_insights }
+sv import from ..services.appService { Goal, Mission, AgentLog, InsightReport, get_missions, toggle_mission, get_stats, get_goals, agent_get_insights, get_agent_logs }
 
 def:pub page() -> JsxElement {
     has missions: list[Mission] = [];
     has goals: list[Goal] = [];
     has stats: dict = {};
     has insights: InsightReport | None = None;
+    has agent_logs: list[AgentLog] = [];
     has loading: bool = True;
     has error: str = "";
 
@@ -22,6 +23,7 @@ def:pub page() -> JsxElement {
                 missions = await get_missions();
                 goals = await get_goals();
                 stats = await get_stats();
+                agent_logs = await get_agent_logs();
                 if len(goals) > 0 {
                     first_goal_id: str = jid(goals[0]);
                     insights = await agent_get_insights(first_goal_id);
@@ -251,23 +253,29 @@ def:pub page() -> JsxElement {
                                             <span className="typing-dot"></span>
                                         </div>
                                     </div>
-                                    <div className="flex flex-col gap-3">
-                                        {[
-                                            <div key={str(i)} className="flex items-start gap-3">
-                                                <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold" style={{"background": str(agents[i]["color"]) + "22", "border": "1px solid " + str(agents[i]["color"]) + "44", "color": agents[i]["color"]}}>
-                                                    {str(agents[i]["name"])[:2]}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-xs font-medium text-foreground">{agents[i]["name"]}</span>
-                                                        <span className={"text-xs " + ("text-green-400" if agents[i]["status"] == "active" else "text-muted-foreground")}>{agents[i]["status"]}</span>
+                                    {len(agent_logs) == 0 and (
+                                        <div className="text-center py-4">
+                                            <p className="text-muted-foreground text-xs">No agent activity yet. Add a goal to activate agents!</p>
+                                        </div>
+                                    )}
+                                    {len(agent_logs) > 0 and (
+                                        <div className="flex flex-col gap-2">
+                                            {[
+                                                <div key={str(i)} className="flex items-start gap-2">
+                                                    <div className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold flex-shrink-0" style={{"background": "rgba(59,130,246,0.15)", "color": "#60a5fa"}}>
+                                                        {agent_logs[len(agent_logs)-1-i].agent_name[:2]}
                                                     </div>
-                                                    <div className="text-xs text-muted-foreground truncate">{agents[i]["task"]}</div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-xs font-medium text-foreground">{agent_logs[len(agent_logs)-1-i].agent_name} · {agent_logs[len(agent_logs)-1-i].action}</div>
+                                                        {agent_logs[len(agent_logs)-1-i].detail and (
+                                                            <div className="text-xs text-muted-foreground truncate">{agent_logs[len(agent_logs)-1-i].detail}</div>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            for i in range(len(agents))
-                                        ]}
-                                    </div>
+                                                for i in range(len(agent_logs) if len(agent_logs) < 6 else 6)
+                                            ]}
+                                        </div>
+                                    )}
                                     <button className="btn btn-ghost w-full mt-4 text-xs" onClick={go_agents}>
                                         View full orchestration →
                                     </button>
