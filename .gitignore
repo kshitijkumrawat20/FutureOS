@@ -9,6 +9,8 @@ __jac_gen__/
 dist/
 __pycache__/
 .env
+.env.local
+.env.*
 .jacbuilder/
 .jac-preview.log
 .jac-ide-bashrc
