@@ -7,6 +7,7 @@ def:pub page() -> JsxElement {
     has goals: list[Goal] = [];
     has opportunities: OpportunityReport | None = None;
     has loading: bool = True;
+    has generating: bool = False;
     has error: str = "";
 
     navigate = useNavigate();
@@ -45,6 +46,21 @@ def:pub page() -> JsxElement {
         active_tab = "projects";
     }
 
+    async def do_set_networking() -> None {
+        goals = await get_goals();
+        active_tab = "networking";
+    }
+
+    async def do_refresh() -> None {
+        generating = True;
+        goals = await get_goals();
+        if len(goals) > 0 {
+            first_id: str = jid(goals[0]);
+            opportunities = await agent_get_opportunities(first_id);
+        }
+        generating = False;
+    }
+
     def set_internships(e: MouseEvent) -> None {
         do_set_internships();
     }
@@ -57,6 +73,18 @@ def:pub page() -> JsxElement {
         do_set_projects();
     }
 
+    def set_networking(e: MouseEvent) -> None {
+        do_set_networking();
+    }
+
+    def refresh(e: MouseEvent) -> None {
+        do_refresh();
+    }
+
+    def go_goals(e: MouseEvent) -> None {
+        navigate("/goals");
+    }
+
     return (
         <div className="page">
             <Sidebar />
@@ -66,9 +94,16 @@ def:pub page() -> JsxElement {
                         <h1 className="text-2xl font-bold text-foreground">Opportunity Hub</h1>
                         <p className="text-muted-foreground text-sm mt-1">AI-curated opportunities matched to your goals</p>
                     </div>
-                    <div className="badge-purple">
-                        <span>🚀</span>
-                        <span>AI Research Agent</span>
+                    <div className="flex items-center gap-3">
+                        <div className="badge-purple">
+                            <span>🔍</span>
+                            <span>Research Agent</span>
+                        </div>
+                        {len(goals) > 0 and (
+                            <button className="btn btn-ghost text-xs" onClick={refresh}>
+                                {generating and "Scanning..." or "↻ Refresh"}
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -90,7 +125,7 @@ def:pub page() -> JsxElement {
                         <div className="text-5xl mb-4">🚀</div>
                         <h2 className="text-xl font-semibold text-foreground mb-2">No goals yet</h2>
                         <p className="text-muted-foreground text-sm mb-6">Add a goal first — the Research Agent will find personalized opportunities for you.</p>
-                        <button className="btn btn-primary" onClick={set_internships}>Go to Goals →</button>
+                        <button className="btn btn-primary" onClick={go_goals}>+ Add a Goal</button>
                     </div>
                 )}
 
@@ -98,21 +133,34 @@ def:pub page() -> JsxElement {
                     <div className="card p-12 text-center">
                         <div className="text-5xl mb-4">🔍</div>
                         <h2 className="text-xl font-semibold text-foreground mb-2">Scanning opportunities...</h2>
-                        <p className="text-muted-foreground text-sm">The Research Agent is analyzing your goal and finding the best opportunities.</p>
+                        <p className="text-muted-foreground text-sm">The Research Agent is analyzing your goal.</p>
                     </div>
                 )}
 
                 {not loading and opportunities is not None and (
                     <div>
+                        {len(goals) > 0 and (
+                            <div className="card p-4 mb-6" style={{"border": "1px solid rgba(139,92,246,0.2)", "background": "rgba(139,92,246,0.04)"}}>
+                                <div className="flex items-center gap-2">
+                                    <span>🎯</span>
+                                    <span className="text-sm font-medium text-foreground">Opportunities for: </span>
+                                    <span className="text-sm text-muted-foreground">{goals[0].title}</span>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="flex gap-2 mb-6">
                             <button className={"btn text-sm " + ("btn-primary" if active_tab == "internships" else "btn-ghost")} onClick={set_internships}>
-                                🏢 Internships & Jobs
+                                🏢 Internships
                             </button>
                             <button className={"btn text-sm " + ("btn-primary" if active_tab == "courses" else "btn-ghost")} onClick={set_courses}>
                                 📚 Courses
                             </button>
                             <button className={"btn text-sm " + ("btn-primary" if active_tab == "projects" else "btn-ghost")} onClick={set_projects}>
                                 🛠 Projects
+                            </button>
+                            <button className={"btn text-sm " + ("btn-primary" if active_tab == "networking" else "btn-ghost")} onClick={set_networking}>
+                                🤝 Networking
                             </button>
                         </div>
 
@@ -121,7 +169,7 @@ def:pub page() -> JsxElement {
                                 {[
                                     <div key={str(i)} className="card p-5">
                                         <div className="flex items-start gap-4">
-                                            <div className="w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold" style={{"background": "rgba(59,130,246,0.1)", "border": "1px solid rgba(59,130,246,0.2)"}}>
+                                            <div className="w-12 h-12 rounded-xl flex items-center justify-center text-lg" style={{"background": "rgba(59,130,246,0.1)", "border": "1px solid rgba(59,130,246,0.2)"}}>
                                                 🏢
                                             </div>
                                             <div className="flex-1">
@@ -171,17 +219,16 @@ def:pub page() -> JsxElement {
                             </div>
                         )}
 
-                        {opportunities.networking and (
-                            <div className="card p-5 mt-6">
-                                <h2 className="text-base font-semibold text-foreground mb-4">🤝 Networking Opportunities</h2>
-                                <div className="grid grid-cols-2 gap-3">
-                                    {[
-                                        <div key={str(i)} className="p-3 rounded-xl" style={{"background": "rgba(139,92,246,0.05)", "border": "1px solid rgba(139,92,246,0.1)"}}>
-                                            <p className="text-xs text-muted-foreground">{str(opportunities.networking[i])}</p>
-                                        </div>
-                                        for i in range(len(opportunities.networking))
-                                    ]}
-                                </div>
+                        {active_tab == "networking" and (
+                            <div className="grid grid-cols-2 gap-4">
+                                {[
+                                    <div key={str(i)} className="card p-5">
+                                        <div className="text-2xl mb-3">🤝</div>
+                                        <div className="text-sm font-semibold text-foreground mb-2">{str(opportunities.networking[i])}</div>
+                                        <span className="badge-yellow text-xs">Community</span>
+                                    </div>
+                                    for i in range(len(opportunities.networking))
+                                ]}
                             </div>
                         )}
                     </div>

@@ -30,34 +30,6 @@ def:pub page() -> JsxElement {
         }
     }
 
-    async def handle_add(e: FormEvent) -> None {
-        e.preventDefault();
-        if not new_summary { return; }
-        saving = True;
-        focus_val: int = 80;
-        try {
-            focus_val = int(new_focus);
-        } except Exception as ex {
-            focus_val = 80;
-        }
-        try {
-            summary: str = new_summary;
-            tags: str = new_tags;
-            focus_score: int = focus_val;
-            duration: str = new_duration;
-            entry = await add_memory(summary, tags, focus_score, duration);
-            memories = [entry] + memories;
-            new_summary = "";
-            new_tags = "";
-            new_focus = "80";
-            new_duration = "1h";
-            show_add = False;
-        } except Exception as ex {
-            error = "Failed to save session";
-        }
-        saving = False;
-    }
-
     async def do_toggle_add() -> None {
         memories = await get_memories();
         show_add = not show_add;
@@ -93,6 +65,43 @@ def:pub page() -> JsxElement {
         new_duration = e.target.value;
     }
 
+    async def handle_add(e: FormEvent) -> None {
+        e.preventDefault();
+        saving = True;
+        error = "";
+        focus_val: int = 80;
+        try {
+            focus_val = int(new_focus);
+        } except Exception as ex {
+            focus_val = 80;
+        }
+        try {
+            summary: str = new_summary;
+            tags: str = new_tags;
+            focus_score: int = focus_val;
+            duration: str = new_duration;
+            entry = await add_memory(summary, tags, focus_score, duration);
+            memories = [entry] + memories;
+            new_summary = "";
+            new_tags = "";
+            new_focus = "80";
+            new_duration = "1h";
+            show_add = False;
+        } except Exception as ex {
+            error = "Failed to save session: " + str(ex);
+        }
+        saving = False;
+    }
+
+    avg_focus: int = 0;
+    if len(memories) > 0 {
+        total_f: int = 0;
+        for m in memories {
+            total_f = total_f + m.focus_score;
+        }
+        avg_focus = total_f // len(memories);
+    }
+
     return (
         <div className="page">
             <Sidebar />
@@ -100,7 +109,7 @@ def:pub page() -> JsxElement {
                 <div className="page-header">
                     <div>
                         <h1 className="text-2xl font-bold text-foreground">Memory Timeline</h1>
-                        <p className="text-muted-foreground text-sm mt-1">Log sessions, track patterns, build your AI memory</p>
+                        <p className="text-muted-foreground text-sm mt-1">AI-indexed learning history — auto-logged when you complete missions</p>
                     </div>
                     <div className="flex items-center gap-3">
                         <div className="badge-cyan">
@@ -119,8 +128,8 @@ def:pub page() -> JsxElement {
                         <form onSubmit={handle_add}>
                             <div className="grid grid-cols-2 gap-4 mb-4">
                                 <div className="col-span-2">
-                                    <label className="label">What did you work on? *</label>
-                                    <input className="input" type="text" value={new_summary} onChange={handle_summary} placeholder="e.g. Solved 3 LeetCode problems, studied neural networks" required={True} />
+                                    <label className="label">What did you work on?</label>
+                                    <input className="input" type="text" value={new_summary} onChange={handle_summary} placeholder="e.g. Solved 3 LeetCode problems, studied neural networks" />
                                 </div>
                                 <div>
                                     <label className="label">Tags (comma-separated)</label>
@@ -153,7 +162,7 @@ def:pub page() -> JsxElement {
                                 <span className="typing-dot"></span>
                                 <span className="typing-dot"></span>
                             </div>
-                            <p className="text-muted-foreground text-sm">Loading memory...</p>
+                            <p className="text-muted-foreground text-sm">Memory Agent loading sessions...</p>
                         </div>
                     </div>
                 )}
@@ -162,7 +171,8 @@ def:pub page() -> JsxElement {
                     <div className="card p-12 text-center">
                         <div className="text-5xl mb-4">🧠</div>
                         <h2 className="text-xl font-semibold text-foreground mb-2">Memory is empty</h2>
-                        <p className="text-muted-foreground text-sm mb-6">Start logging your study sessions. The AI will learn your patterns over time.</p>
+                        <p className="text-muted-foreground text-sm mb-2">Sessions are auto-logged when you complete missions.</p>
+                        <p className="text-muted-foreground text-sm mb-6">Or log a session manually.</p>
                         <button className="btn btn-primary" onClick={toggle_add}>+ Log Your First Session</button>
                     </div>
                 )}
@@ -215,9 +225,14 @@ def:pub page() -> JsxElement {
                                     </div>
                                     <div>
                                         <div className="text-xs text-muted-foreground mb-1">Avg Focus Score</div>
-                                        <div className="text-2xl font-bold" style={{"color": "#06b6d4"}}>
-                                            {str(len(memories) > 0 and (sum([memories[i].focus_score for i in range(len(memories))]) // len(memories)) or 0) + "%"}
+                                        <div className="text-2xl font-bold" style={{"color": "#06b6d4"}}>{str(avg_focus) + "%"}</div>
+                                        <div className="progress-bar mt-1">
+                                            <div className="progress-fill" style={{"width": str(avg_focus) + "%"}}></div>
                                         </div>
+                                    </div>
+                                    <div className="p-3 rounded-xl" style={{"background": "rgba(6,182,212,0.05)", "border": "1px solid rgba(6,182,212,0.1)"}}>
+                                        <div className="text-xs font-medium mb-1" style={{"color": "#22d3ee"}}>🧠 Memory Agent</div>
+                                        <p className="text-xs text-muted-foreground">Auto-logs every completed mission. Building your learning history.</p>
                                     </div>
                                 </div>
                             </div>
