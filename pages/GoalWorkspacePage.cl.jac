@@ -1,8 +1,23 @@
 import from "@jac/runtime" { useNavigate, jacIsLoggedIn, Navigate }
 import from ..components.Sidebar { Sidebar }
+sv import from ..services.appService { Goal, Mission, get_goals, add_goal, delete_goal, update_goal_progress, get_missions, add_mission, delete_mission }
 
 def:pub page() -> JsxElement {
-    has selected_goal: int = 0;
+    has goals: list[Goal] = [];
+    has missions: list[Mission] = [];
+    has selected_idx: int = 0;
+    has loading: bool = True;
+    has show_add_goal: bool = False;
+    has show_add_mission: bool = False;
+    has new_goal_title: str = "";
+    has new_goal_desc: str = "";
+    has new_goal_timeline: str = "3 months";
+    has new_mission_title: str = "";
+    has new_mission_tag: str = "General";
+    has new_mission_diff: str = "Medium";
+    has new_mission_xp: str = "100";
+    has saving: bool = False;
+    has error: str = "";
 
     navigate = useNavigate();
 
@@ -10,27 +25,209 @@ def:pub page() -> JsxElement {
         return <Navigate to="/login" replace={True} />;
     }
 
-    goals = [
-        {"title": "Become an AI Engineer", "timeline": "6 months", "progress": 68, "status": "active", "color": "#3b82f6"},
-        {"title": "Crack FAANG Internship", "timeline": "4 months", "progress": 42, "status": "active", "color": "#8b5cf6"},
-        {"title": "Build AI Startup MVP", "timeline": "3 months", "progress": 25, "status": "planning", "color": "#06b6d4"}
-    ];
+    async can with entry {
+        if jacIsLoggedIn() {
+            try {
+                goals = await get_goals();
+                missions = await get_missions();
+            } except Exception as ex {
+                error = "Failed to load data";
+            }
+            loading = False;
+        }
+    }
 
-    milestones = [
-        {"title": "Master Python & ML Fundamentals", "week": "Week 1-3", "done": True, "tasks": 12},
-        {"title": "Build 3 ML Projects", "week": "Week 4-7", "done": True, "tasks": 8},
-        {"title": "Deep Learning & Neural Networks", "week": "Week 8-11", "done": False, "tasks": 15},
-        {"title": "LLM Engineering & Prompt Design", "week": "Week 12-15", "done": False, "tasks": 10},
-        {"title": "System Design for AI", "week": "Week 16-18", "done": False, "tasks": 9},
-        {"title": "Portfolio & Job Applications", "week": "Week 19-24", "done": False, "tasks": 20}
-    ];
+    async def do_open_add_goal() -> None {
+        goals = await get_goals();
+        missions = await get_missions();
+        show_add_goal = True;
+        show_add_mission = False;
+        error = "";
+    }
 
-    strategies = [
-        {"agent": "Planner", "text": "Focus on hands-on projects over theory. Build 1 project per milestone."},
-        {"agent": "Research", "text": "Target ML Engineer roles at mid-size AI companies first, then FAANG."},
-        {"agent": "Coach", "text": "Your learning velocity is highest on weekdays 8-11 PM. Schedule deep work then."},
-        {"agent": "Analytics", "text": "At current pace, you'll reach 80% readiness by month 5. Accelerate DSA practice."}
-    ];
+    async def do_close_add_goal() -> None {
+        goals = await get_goals();
+        show_add_goal = False;
+        error = "";
+    }
+
+    async def do_open_add_mission() -> None {
+        missions = await get_missions();
+        show_add_mission = True;
+        show_add_goal = False;
+        error = "";
+    }
+
+    async def do_close_add_mission() -> None {
+        missions = await get_missions();
+        show_add_mission = False;
+        error = "";
+    }
+
+    def open_add_goal(e: MouseEvent) -> None {
+        do_open_add_goal();
+    }
+
+    def close_add_goal(e: MouseEvent) -> None {
+        do_close_add_goal();
+    }
+
+    def open_add_mission(e: MouseEvent) -> None {
+        do_open_add_mission();
+    }
+
+    def close_add_mission(e: MouseEvent) -> None {
+        do_close_add_mission();
+    }
+
+    def handle_goal_title(e: ChangeEvent) -> None {
+        new_goal_title = e.target.value;
+    }
+
+    def handle_goal_desc(e: ChangeEvent) -> None {
+        new_goal_desc = e.target.value;
+    }
+
+    def handle_goal_timeline(e: ChangeEvent) -> None {
+        new_goal_timeline = e.target.value;
+    }
+
+    def handle_mission_title(e: ChangeEvent) -> None {
+        new_mission_title = e.target.value;
+    }
+
+    def handle_mission_tag(e: ChangeEvent) -> None {
+        new_mission_tag = e.target.value;
+    }
+
+    def handle_mission_diff(e: ChangeEvent) -> None {
+        new_mission_diff = e.target.value;
+    }
+
+    def handle_mission_xp(e: ChangeEvent) -> None {
+        new_mission_xp = e.target.value;
+    }
+
+    async def submit_add_goal(e: FormEvent) -> None {
+        e.preventDefault();
+        if not new_goal_title { return; }
+        saving = True;
+        error = "";
+        try {
+            title: str = new_goal_title;
+            description: str = new_goal_desc;
+            timeline: str = new_goal_timeline;
+            g = await add_goal(title, description, timeline);
+            new_goals_list: list[Goal] = goals + [g];
+            new_idx: int = len(new_goals_list) - 1;
+            goals = new_goals_list;
+            selected_idx = new_idx;
+            new_goal_title = "";
+            new_goal_desc = "";
+            show_add_goal = False;
+        } except Exception as ex {
+            error = "Failed to add goal. Please try again.";
+        }
+        saving = False;
+    }
+
+    async def submit_add_mission(e: FormEvent) -> None {
+        e.preventDefault();
+        saving = True;
+        error = "";
+        gid: str = "";
+        if len(goals) > 0 and selected_idx < len(goals) {
+            gid = jid(goals[selected_idx]);
+        }
+        title: str = new_mission_title;
+        difficulty: str = new_mission_diff;
+        tag: str = new_mission_tag;
+        goal_id: str = gid;
+        try {
+            m = await add_mission(title, difficulty, 100, tag, goal_id);
+            missions = missions + [m];
+            new_mission_title = "";
+            show_add_mission = False;
+        } except Exception as ex {
+            error = "Error: " + str(ex);
+        }
+        saving = False;
+    }
+
+    async def do_delete_goal(gid: str) -> None {
+        goal_id: str = gid;
+        ok = await delete_goal(goal_id);
+        if ok {
+            new_goals: list[Goal] = [];
+            for g in goals {
+                if jid(g) != gid {
+                    new_goals = new_goals + [g];
+                }
+            }
+            goals = new_goals;
+            selected_idx = 0;
+        }
+    }
+
+    async def do_delete_mission(mid: str) -> None {
+        mission_id: str = mid;
+        ok = await delete_mission(mission_id);
+        if ok {
+            new_missions: list[Mission] = [];
+            for m in missions {
+                if jid(m) != mid {
+                    new_missions = new_missions + [m];
+                }
+            }
+            missions = new_missions;
+        }
+    }
+
+    async def do_update_progress(gid: str, val: int) -> None {
+        goal_id: str = gid;
+        progress: int = val;
+        result = await update_goal_progress(goal_id, progress);
+        if result is not None {
+            new_goals: list[Goal] = [];
+            for g in goals {
+                if jid(g) == gid {
+                    new_goals = new_goals + [result];
+                } else {
+                    new_goals = new_goals + [g];
+                }
+            }
+            goals = new_goals;
+        }
+    }
+
+    def make_select_goal(idx: int) -> Any {
+        async def do_select(e: Any) -> None {
+            goals = await get_goals();
+            selected_idx = idx;
+        }
+        return do_select;
+    }
+
+    def make_delete_goal(gid: str) -> Any {
+        def do_del(e: MouseEvent) -> None {
+            do_delete_goal(gid);
+        }
+        return do_del;
+    }
+
+    def make_delete_mission(mid: str) -> Any {
+        def do_del(e: MouseEvent) -> None {
+            do_delete_mission(mid);
+        }
+        return do_del;
+    }
+
+    def make_set_progress(gid: str, val: int) -> Any {
+        def do_prog(e: MouseEvent) -> None {
+            do_update_progress(gid, val);
+        }
+        return do_prog;
+    }
 
     return (
         <div className="page">
@@ -39,96 +236,202 @@ def:pub page() -> JsxElement {
                 <div className="page-header">
                     <div>
                         <h1 className="text-2xl font-bold text-foreground">Goal Workspace</h1>
-                        <p className="text-muted-foreground text-sm mt-1">AI-generated roadmaps and adaptive strategies</p>
+                        <p className="text-muted-foreground text-sm mt-1">Create goals, add missions, track progress</p>
                     </div>
-                    <button className="btn btn-primary">+ Add Goal</button>
+                    <button className="btn btn-primary" onClick={open_add_goal}>+ Add Goal</button>
                 </div>
 
-                <div className="flex gap-3 mb-6">
-                    {[
-                        <button
-                            key={str(i)}
-                            className={"px-4 py-2 rounded-xl text-sm font-medium transition-all " + ("text-white" if selected_goal == i else "text-muted-foreground hover:text-foreground")}
-                            style={{"background": (goals[i]["color"] + "22") if selected_goal == i else "rgba(255,255,255,0.03)", "border": "1px solid " + (goals[i]["color"] + "44" if selected_goal == i else "rgba(255,255,255,0.06)")}}
-                            onClick={lambda e, idx=i: None}
-                        >
-                            {goals[i]["title"]}
-                        </button>
-                        for i in range(len(goals))
-                    ]}
-                </div>
+                {error and <div className="error-box mb-4">{error}</div>}
 
-                <div className="grid grid-cols-3 gap-6">
-                    <div className="col-span-2">
-                        <div className="card p-6 mb-6">
-                            <div className="flex items-center justify-between mb-2">
-                                <h2 className="text-lg font-semibold text-foreground">{goals[selected_goal]["title"]}</h2>
-                                <span className="badge-blue">{goals[selected_goal]["timeline"]}</span>
+                {loading and (
+                    <div className="flex items-center justify-center py-20">
+                        <div className="text-center">
+                            <div className="flex gap-2 justify-center mb-3">
+                                <span className="typing-dot"></span>
+                                <span className="typing-dot"></span>
+                                <span className="typing-dot"></span>
                             </div>
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="progress-bar flex-1">
-                                    <div className="progress-fill" style={{"width": str(goals[selected_goal]["progress"]) + "%"}}></div>
-                                </div>
-                                <span className="text-sm font-medium text-foreground">{str(goals[selected_goal]["progress"]) + "%"}</span>
-                            </div>
+                            <p className="text-muted-foreground text-sm">Loading your goals...</p>
+                        </div>
+                    </div>
+                )}
 
-                            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Roadmap Milestones</h3>
-                            <div className="relative">
-                                <div className="absolute left-4 top-0 bottom-0 w-px" style={{"background": "rgba(59,130,246,0.2)"}}></div>
-                                <div className="flex flex-col gap-4">
-                                    {[
-                                        <div key={str(i)} className="flex items-start gap-4 pl-10 relative">
-                                            <div className={"absolute left-2.5 w-3 h-3 rounded-full border-2 " + ("bg-green-400 border-green-400" if milestones[i]["done"] else "bg-background border-border")} style={{"top": "4px"}}></div>
-                                            <div className={"flex-1 p-4 rounded-xl " + ("opacity-60" if milestones[i]["done"] else "")} style={{"background": "rgba(59,130,246,0.04)", "border": "1px solid rgba(59,130,246,0.1)"}}>
-                                                <div className="flex items-center justify-between">
-                                                    <span className={"text-sm font-medium " + ("line-through text-muted-foreground" if milestones[i]["done"] else "text-foreground")}>{milestones[i]["title"]}</span>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-xs text-muted-foreground">{str(milestones[i]["tasks"]) + " tasks"}</span>
-                                                        <span className="badge-blue text-xs">{milestones[i]["week"]}</span>
-                                                    </div>
-                                                </div>
+                {not loading and show_add_goal and (
+                    <div className="card p-6 mb-6" style={{"border": "1px solid rgba(59,130,246,0.3)"}}>
+                        <h2 className="text-base font-semibold text-foreground mb-4">New Goal</h2>
+                        <form onSubmit={submit_add_goal}>
+                            <div className="mb-4">
+                                <label className="label">Goal Title *</label>
+                                <input className="input" type="text" value={new_goal_title} onChange={handle_goal_title} placeholder="e.g. Become an AI Engineer in 6 months" required={True} />
+                            </div>
+                            <div className="mb-4">
+                                <label className="label">Description</label>
+                                <input className="input" type="text" value={new_goal_desc} onChange={handle_goal_desc} placeholder="What does success look like?" />
+                            </div>
+                            <div className="mb-4">
+                                <label className="label">Timeline</label>
+                                <input className="input" type="text" value={new_goal_timeline} onChange={handle_goal_timeline} placeholder="e.g. 6 months" />
+                            </div>
+                            <div className="flex gap-3">
+                                <button type="submit" className="btn btn-primary" disabled={saving}>
+                                    {saving and "Creating..." or "Create Goal"}
+                                </button>
+                                <button type="button" className="btn btn-ghost" onClick={close_add_goal}>Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                )}
+
+                {not loading and len(goals) == 0 and not show_add_goal and (
+                    <div className="card p-12 text-center">
+                        <div className="text-5xl mb-4">🎯</div>
+                        <h2 className="text-xl font-semibold text-foreground mb-2">No goals yet</h2>
+                        <p className="text-muted-foreground text-sm mb-6">Add your first long-term goal and let AI agents build your roadmap.</p>
+                        <button className="btn btn-primary" onClick={open_add_goal}>+ Add Your First Goal</button>
+                    </div>
+                )}
+
+                {not loading and len(goals) > 0 and (
+                    <div>
+                        <div className="flex gap-3 mb-6 flex-wrap">
+                            {[
+                                <button
+                                    key={jid(goals[i])}
+                                    className={"px-4 py-2 rounded-xl text-sm font-medium transition-all " + ("text-white" if selected_idx == i else "text-muted-foreground")}
+                                    style={{"background": "rgba(59,130,246,0.2)" if selected_idx == i else "rgba(255,255,255,0.03)", "border": "1px solid " + ("rgba(59,130,246,0.4)" if selected_idx == i else "rgba(255,255,255,0.06)")}}
+                                    onClick={make_select_goal(i)}
+                                >
+                                    {goals[i].title}
+                                </button>
+                                for i in range(len(goals))
+                            ]}
+                        </div>
+
+                        {selected_idx < len(goals) and (
+                            <div className="grid grid-cols-3 gap-6">
+                                <div className="col-span-2">
+                                    <div className="card p-6 mb-6">
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div>
+                                                <h2 className="text-lg font-semibold text-foreground">{goals[selected_idx].title}</h2>
+                                                <span className="badge-blue mt-1">{goals[selected_idx].timeline}</span>
+                                                {goals[selected_idx].description and (
+                                                    <p className="text-sm text-muted-foreground mt-2">{goals[selected_idx].description}</p>
+                                                )}
+                                            </div>
+                                            <button className="btn btn-ghost text-xs" style={{"color": "#ef4444"}} onClick={make_delete_goal(jid(goals[selected_idx]))}>Delete</button>
+                                        </div>
+
+                                        <div className="mb-6">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className="text-xs text-muted-foreground">Progress</span>
+                                                <span className="text-sm font-bold text-foreground">{str(goals[selected_idx].progress) + "%"}</span>
+                                            </div>
+                                            <div className="progress-bar mb-2">
+                                                <div className="progress-fill" style={{"width": str(goals[selected_idx].progress) + "%"}}></div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                {[
+                                                    <button key={str(v)} className="btn btn-ghost text-xs py-1 px-2" onClick={make_set_progress(jid(goals[selected_idx]), v)}>
+                                                        {str(v) + "%"}
+                                                    </button>
+                                                    for v in [10, 25, 50, 75, 100]
+                                                ]}
                                             </div>
                                         </div>
-                                        for i in range(len(milestones))
-                                    ]}
+
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Missions</h3>
+                                            <button className="btn btn-ghost text-xs" onClick={open_add_mission}>+ Add Mission</button>
+                                        </div>
+
+                                        {show_add_mission and (
+                                            <div className="p-4 rounded-xl mb-4" style={{"background": "rgba(59,130,246,0.05)", "border": "1px solid rgba(59,130,246,0.15)"}}>
+                                                <form onSubmit={submit_add_mission}>
+                                                    <div className="mb-3">
+                                                        <label className="label">Mission Title *</label>
+                                                        <input className="input" type="text" value={new_mission_title} onChange={handle_mission_title} placeholder="e.g. Solve 3 LeetCode problems" required={True} />
+                                                    </div>
+                                                    <div className="grid grid-cols-3 gap-3 mb-3">
+                                                        <div>
+                                                            <label className="label">Tag</label>
+                                                            <input className="input" type="text" value={new_mission_tag} onChange={handle_mission_tag} placeholder="DSA" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="label">Difficulty</label>
+                                                            <input className="input" type="text" value={new_mission_diff} onChange={handle_mission_diff} placeholder="Medium" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="label">XP</label>
+                                                            <input className="input" type="number" value={new_mission_xp} onChange={handle_mission_xp} placeholder="100" />
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <button type="submit" className="btn btn-primary text-xs" disabled={saving}>
+                                                            {saving and "Adding..." or "Add Mission"}
+                                                        </button>
+                                                        <button type="button" className="btn btn-ghost text-xs" onClick={close_add_mission}>Cancel</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        )}
+
+                                        <div className="flex flex-col gap-2">
+                                            {[
+                                                <div key={jid(missions[i])} className="flex items-center gap-3 p-3 rounded-xl" style={{"background": "rgba(59,130,246,0.03)", "border": "1px solid rgba(59,130,246,0.08)"}}>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-sm font-medium text-foreground">{missions[i].title}</div>
+                                                        <div className="flex gap-2 mt-1">
+                                                            <span className="badge-blue text-xs">{missions[i].tag}</span>
+                                                            <span className="text-xs text-muted-foreground">{missions[i].difficulty}</span>
+                                                            <span className="text-xs" style={{"color": "#f59e0b"}}>+{str(missions[i].xp)} XP</span>
+                                                        </div>
+                                                    </div>
+                                                    <button className="btn btn-ghost text-xs py-1 px-2" style={{"color": "#ef4444"}} onClick={make_delete_mission(jid(missions[i]))}>✕</button>
+                                                </div>
+                                                for i in range(len(missions))
+                                                if missions[i].goal_id == jid(goals[selected_idx])
+                                            ]}
+                                        </div>
+
+                                        {len([m for m in missions if m.goal_id == jid(goals[selected_idx])]) == 0 and not show_add_mission and (
+                                            <div className="text-center py-4">
+                                                <p className="text-muted-foreground text-sm">No missions for this goal yet.</p>
+                                                <button className="btn btn-ghost text-xs mt-2" onClick={open_add_mission}>+ Add first mission</button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div className="card p-5">
+                                        <h2 className="text-base font-semibold text-foreground mb-4">All Goals</h2>
+                                        <div className="flex flex-col gap-3">
+                                            {[
+                                                <div
+                                                    key={jid(goals[i])}
+                                                    className="p-3 rounded-xl cursor-pointer"
+                                                    style={{"background": "rgba(59,130,246,0.08)" if selected_idx == i else "rgba(59,130,246,0.03)", "border": "1px solid " + ("rgba(59,130,246,0.2)" if selected_idx == i else "rgba(59,130,246,0.06)")}}
+                                                    onClick={make_select_goal(i)}
+                                                >
+                                                    <div className="text-sm font-medium text-foreground mb-1">{goals[i].title}</div>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="progress-bar flex-1">
+                                                            <div className="progress-fill" style={{"width": str(goals[i].progress) + "%"}}></div>
+                                                        </div>
+                                                        <span className="text-xs text-muted-foreground">{str(goals[i].progress) + "%"}</span>
+                                                    </div>
+                                                </div>
+                                                for i in range(len(goals))
+                                            ]}
+                                        </div>
+                                        <button className="btn btn-ghost w-full mt-4 text-xs" onClick={open_add_goal}>+ Add Goal</button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
                     </div>
-
-                    <div>
-                        <div className="card p-5 mb-4">
-                            <h2 className="text-base font-semibold text-foreground mb-4">AI Strategy Panel</h2>
-                            <div className="flex flex-col gap-3">
-                                {[
-                                    <div key={str(i)} className="p-3 rounded-xl" style={{"background": "rgba(139,92,246,0.05)", "border": "1px solid rgba(139,92,246,0.1)"}}>
-                                        <div className="text-xs font-medium mb-1" style={{"color": "#a78bfa"}}>{strategies[i]["agent"]} Agent</div>
-                                        <p className="text-xs text-muted-foreground leading-relaxed">{strategies[i]["text"]}</p>
-                                    </div>
-                                    for i in range(len(strategies))
-                                ]}
-                            </div>
-                        </div>
-
-                        <div className="card p-5">
-                            <h2 className="text-base font-semibold text-foreground mb-3">Timeline Prediction</h2>
-                            <div className="text-center py-4">
-                                <div className="text-4xl font-bold text-gradient-blue mb-1">Dec 15</div>
-                                <div className="text-xs text-muted-foreground">Predicted completion</div>
-                                <div className="mt-3 text-xs text-green-400">✓ On track</div>
-                            </div>
-                            <div className="divider"></div>
-                            <div className="flex justify-between text-xs">
-                                <span className="text-muted-foreground">Velocity</span>
-                                <span className="text-foreground font-medium">8.4 tasks/week</span>
-                            </div>
-                            <div className="flex justify-between text-xs mt-2">
-                                <span className="text-muted-foreground">Consistency</span>
-                                <span className="text-foreground font-medium">76%</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                )}
             </div>
         </div>
     );

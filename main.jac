@@ -2,7 +2,13 @@
 FutureOS — Adaptive AI Life Operating System
 """
 
-import from services.appService { get_dashboard_data, get_goals, get_missions, get_agents, get_insights }
+import from services.appService {
+    Goal, Mission, MemoryEntry,
+    get_goals, add_goal, update_goal_progress, delete_goal,
+    get_missions, add_mission, toggle_mission, delete_mission,
+    get_memories, add_memory,
+    get_stats
+}
 
 cl import ".styles.global.css";
 

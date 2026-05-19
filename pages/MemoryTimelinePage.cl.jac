@@ -1,29 +1,97 @@
 import from "@jac/runtime" { useNavigate, jacIsLoggedIn, Navigate }
 import from ..components.Sidebar { Sidebar }
+sv import from ..services.appService { MemoryEntry, get_memories, add_memory }
 
 def:pub page() -> JsxElement {
+    has memories: list[MemoryEntry] = [];
+    has loading: bool = True;
+    has show_add: bool = False;
+    has saving: bool = False;
+    has error: str = "";
+    has new_summary: str = "";
+    has new_tags: str = "";
+    has new_focus: str = "80";
+    has new_duration: str = "1h";
+
     navigate = useNavigate();
 
     if not jacIsLoggedIn() {
         return <Navigate to="/login" replace={True} />;
     }
 
-    sessions = [
-        {"date": "Today, 8:45 PM", "duration": "2h 15m", "tasks": 4, "focus": 92, "tags": ["DSA", "Python"], "summary": "Completed 2 LeetCode mediums. Strong performance on graph problems. Struggled with DP."},
-        {"date": "Yesterday, 9:00 PM", "duration": "1h 45m", "tasks": 3, "focus": 78, "tags": ["ML", "Reading"], "summary": "Read System Design Primer chapters 4-6. Reviewed neural network fundamentals."},
-        {"date": "Nov 18, 8:30 PM", "duration": "3h 00m", "tasks": 6, "focus": 88, "tags": ["Project", "FastAPI"], "summary": "Built REST API with FastAPI. Implemented auth endpoints. Deployed to Render."},
-        {"date": "Nov 17, 7:00 PM", "duration": "1h 30m", "tasks": 2, "focus": 65, "tags": ["Career"], "summary": "Updated resume. Applied to 3 ML internship positions at Google and Meta."},
-        {"date": "Nov 16, 9:15 PM", "duration": "2h 30m", "tasks": 5, "focus": 95, "tags": ["DSA", "Trees"], "summary": "Mastered binary tree traversals. Solved 5 tree problems. Best session this week."}
-    ];
+    async can with entry {
+        if jacIsLoggedIn() {
+            try {
+                memories = await get_memories();
+            } except Exception as ex {
+                error = "Failed to load memories";
+            }
+            loading = False;
+        }
+    }
 
-    memories = [
-        {"type": "strength", "icon": "💪", "text": "Strong in backend engineering and API design", "color": "#10b981"},
-        {"type": "weakness", "icon": "⚠️", "text": "Dynamic programming needs more practice", "color": "#f59e0b"},
-        {"type": "pattern", "icon": "🌙", "text": "Peak performance: weekdays 8-11 PM", "color": "#3b82f6"},
-        {"type": "achievement", "icon": "🏆", "text": "Completed 14-day streak — personal record", "color": "#8b5cf6"},
-        {"type": "weakness", "icon": "📉", "text": "DSA consistency dropped 32% this week", "color": "#ef4444"},
-        {"type": "pattern", "icon": "🔄", "text": "Learns faster with project-based approach", "color": "#06b6d4"}
-    ];
+    async def handle_add(e: FormEvent) -> None {
+        e.preventDefault();
+        if not new_summary { return; }
+        saving = True;
+        focus_val: int = 80;
+        try {
+            focus_val = int(new_focus);
+        } except Exception as ex {
+            focus_val = 80;
+        }
+        try {
+            summary: str = new_summary;
+            tags: str = new_tags;
+            focus_score: int = focus_val;
+            duration: str = new_duration;
+            entry = await add_memory(summary, tags, focus_score, duration);
+            memories = [entry] + memories;
+            new_summary = "";
+            new_tags = "";
+            new_focus = "80";
+            new_duration = "1h";
+            show_add = False;
+        } except Exception as ex {
+            error = "Failed to save session";
+        }
+        saving = False;
+    }
+
+    async def do_toggle_add() -> None {
+        memories = await get_memories();
+        show_add = not show_add;
+        error = "";
+    }
+
+    async def do_cancel_add() -> None {
+        memories = await get_memories();
+        show_add = False;
+    }
+
+    def toggle_add(e: MouseEvent) -> None {
+        do_toggle_add();
+    }
+
+    def cancel_add(e: MouseEvent) -> None {
+        do_cancel_add();
+    }
+
+    def handle_summary(e: ChangeEvent) -> None {
+        new_summary = e.target.value;
+    }
+
+    def handle_tags(e: ChangeEvent) -> None {
+        new_tags = e.target.value;
+    }
+
+    def handle_focus(e: ChangeEvent) -> None {
+        new_focus = e.target.value;
+    }
+
+    def handle_duration(e: ChangeEvent) -> None {
+        new_duration = e.target.value;
+    }
 
     return (
         <div className="page">
@@ -32,67 +100,130 @@ def:pub page() -> JsxElement {
                 <div className="page-header">
                     <div>
                         <h1 className="text-2xl font-bold text-foreground">Memory Timeline</h1>
-                        <p className="text-muted-foreground text-sm mt-1">AI-indexed learning history and behavioral patterns</p>
+                        <p className="text-muted-foreground text-sm mt-1">Log sessions, track patterns, build your AI memory</p>
                     </div>
-                    <div className="badge-cyan">
-                        <span>🧠</span>
-                        <span>Memory Active</span>
+                    <div className="flex items-center gap-3">
+                        <div className="badge-cyan">
+                            <span>🧠</span>
+                            <span>{str(len(memories)) + " sessions indexed"}</span>
+                        </div>
+                        <button className="btn btn-primary" onClick={toggle_add}>+ Log Session</button>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-6">
-                    <div className="col-span-2">
-                        <h2 className="text-base font-semibold text-foreground mb-4">Session History</h2>
-                        <div className="relative">
-                            <div className="absolute left-4 top-0 bottom-0 w-px" style={{"background": "rgba(59,130,246,0.2)"}}></div>
-                            <div className="flex flex-col gap-4">
-                                {[
-                                    <div key={str(i)} className="flex items-start gap-4 pl-10 relative">
-                                        <div className="absolute left-2.5 w-3 h-3 rounded-full border-2 border-primary" style={{"top": "16px", "background": "#3b82f6"}}></div>
-                                        <div className="flex-1 card p-4">
-                                            <div className="flex items-start justify-between mb-2">
-                                                <div>
-                                                    <div className="text-sm font-medium text-foreground">{sessions[i]["date"]}</div>
-                                                    <div className="text-xs text-muted-foreground">{sessions[i]["duration"]} · {str(sessions[i]["tasks"])} tasks</div>
-                                                </div>
-                                                <div className="text-right">
-                                                    <div className="text-sm font-bold" style={{"color": "#3b82f6"}}>{str(sessions[i]["focus"]) + "%"}</div>
-                                                    <div className="text-xs text-muted-foreground">focus</div>
-                                                </div>
-                                            </div>
-                                            <p className="text-xs text-muted-foreground mb-2 leading-relaxed">{sessions[i]["summary"]}</p>
-                                            <div className="flex gap-1">
-                                                {[
-                                                    <span key={str(j)} className="badge-blue text-xs">{tag}</span>
-                                                    for (j, tag) in enumerate(list(sessions[i]["tags"]))
-                                                ]}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    for i in range(len(sessions))
-                                ]}
+                {error and <div className="error-box mb-4">{error}</div>}
+
+                {show_add and (
+                    <div className="card p-6 mb-6" style={{"border": "1px solid rgba(6,182,212,0.3)"}}>
+                        <h2 className="text-base font-semibold text-foreground mb-4">Log a Session</h2>
+                        <form onSubmit={handle_add}>
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                                <div className="col-span-2">
+                                    <label className="label">What did you work on? *</label>
+                                    <input className="input" type="text" value={new_summary} onChange={handle_summary} placeholder="e.g. Solved 3 LeetCode problems, studied neural networks" required={True} />
+                                </div>
+                                <div>
+                                    <label className="label">Tags (comma-separated)</label>
+                                    <input className="input" type="text" value={new_tags} onChange={handle_tags} placeholder="DSA, ML, Python" />
+                                </div>
+                                <div>
+                                    <label className="label">Duration</label>
+                                    <input className="input" type="text" value={new_duration} onChange={handle_duration} placeholder="e.g. 2h 30m" />
+                                </div>
+                                <div>
+                                    <label className="label">Focus Score (0-100)</label>
+                                    <input className="input" type="number" value={new_focus} onChange={handle_focus} placeholder="80" />
+                                </div>
                             </div>
+                            <div className="flex gap-3">
+                                <button type="submit" className="btn btn-primary" disabled={saving}>
+                                    {saving and "Saving..." or "Save Session"}
+                                </button>
+                                <button type="button" className="btn btn-ghost" onClick={cancel_add}>Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                )}
+
+                {loading and (
+                    <div className="flex items-center justify-center py-20">
+                        <div className="text-center">
+                            <div className="flex gap-2 justify-center mb-3">
+                                <span className="typing-dot"></span>
+                                <span className="typing-dot"></span>
+                                <span className="typing-dot"></span>
+                            </div>
+                            <p className="text-muted-foreground text-sm">Loading memory...</p>
                         </div>
                     </div>
+                )}
 
-                    <div>
-                        <h2 className="text-base font-semibold text-foreground mb-4">AI Memory Bank</h2>
-                        <div className="flex flex-col gap-3">
-                            {[
-                                <div key={str(i)} className="card p-4">
-                                    <div className="flex items-start gap-3">
-                                        <span style={{"fontSize": "18px"}}>{memories[i]["icon"]}</span>
-                                        <div>
-                                            <div className="text-xs font-medium mb-1" style={{"color": memories[i]["color"]}}>{memories[i]["type"].upper()}</div>
-                                            <p className="text-xs text-muted-foreground leading-relaxed">{memories[i]["text"]}</p>
+                {not loading and len(memories) == 0 and not show_add and (
+                    <div className="card p-12 text-center">
+                        <div className="text-5xl mb-4">🧠</div>
+                        <h2 className="text-xl font-semibold text-foreground mb-2">Memory is empty</h2>
+                        <p className="text-muted-foreground text-sm mb-6">Start logging your study sessions. The AI will learn your patterns over time.</p>
+                        <button className="btn btn-primary" onClick={toggle_add}>+ Log Your First Session</button>
+                    </div>
+                )}
+
+                {not loading and len(memories) > 0 and (
+                    <div className="grid grid-cols-3 gap-6">
+                        <div className="col-span-2">
+                            <h2 className="text-base font-semibold text-foreground mb-4">Session History</h2>
+                            <div className="relative">
+                                <div className="absolute left-4 top-0 bottom-0 w-px" style={{"background": "rgba(6,182,212,0.2)"}}></div>
+                                <div className="flex flex-col gap-4">
+                                    {[
+                                        <div key={jid(memories[i])} className="flex items-start gap-4 pl-10 relative">
+                                            <div className="absolute left-2.5 w-3 h-3 rounded-full border-2" style={{"top": "16px", "background": "#06b6d4", "borderColor": "#06b6d4"}}></div>
+                                            <div className="flex-1 card p-4">
+                                                <div className="flex items-start justify-between mb-2">
+                                                    <div className="flex-1">
+                                                        <div className="text-sm font-medium text-foreground">{memories[i].summary}</div>
+                                                        <div className="text-xs text-muted-foreground mt-0.5">{memories[i].duration}</div>
+                                                    </div>
+                                                    <div className="text-right ml-4">
+                                                        <div className="text-sm font-bold" style={{"color": "#06b6d4"}}>{str(memories[i].focus_score) + "%"}</div>
+                                                        <div className="text-xs text-muted-foreground">focus</div>
+                                                    </div>
+                                                </div>
+                                                {memories[i].tags and (
+                                                    <div className="flex gap-1 flex-wrap">
+                                                        {[
+                                                            <span key={str(j)} className="badge-cyan text-xs">{tag.strip()}</span>
+                                                            for (j, tag) in enumerate(str(memories[i].tags).split(","))
+                                                            if tag.strip()
+                                                        ]}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        for i in range(len(memories))
+                                    ]}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div className="card p-5">
+                                <h2 className="text-base font-semibold text-foreground mb-4">Memory Stats</h2>
+                                <div className="flex flex-col gap-4">
+                                    <div>
+                                        <div className="text-xs text-muted-foreground mb-1">Total Sessions</div>
+                                        <div className="text-2xl font-bold text-gradient-blue">{str(len(memories))}</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-xs text-muted-foreground mb-1">Avg Focus Score</div>
+                                        <div className="text-2xl font-bold" style={{"color": "#06b6d4"}}>
+                                            {str(len(memories) > 0 and (sum([memories[i].focus_score for i in range(len(memories))]) // len(memories)) or 0) + "%"}
                                         </div>
                                     </div>
                                 </div>
-                                for i in range(len(memories))
-                            ]}
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
             </div>
         </div>
     );
