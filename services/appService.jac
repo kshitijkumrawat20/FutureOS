@@ -1,7 +1,7 @@
 import from byllm.lib { Model }
 import os;
 
-glob llm: Model = Model(model_name="gemini/gemini-2.5-flash", api_key="AQ.Ab8RN6JeGqVkKfpLwuM7YymbuYSnq-PF3CtE5tfv1kDwL-uX7A");
+glob llm: Model = Model(model_name="gemini/gemini-3.1-flash-lite", api_key="AQ.Ab8RN6JeGqVkKfpLwuM7YymbuYSnq-PF3CtE5tfv1kDwL-uX7A");
 
 # ==== DATA NODES ====
 
