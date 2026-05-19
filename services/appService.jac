@@ -1,18 +1,7 @@
 import from byllm.lib { Model }
 import os;
 
-def _get_llm() -> Model {
-    try {
-        import from dotenv { load_dotenv }
-        load_dotenv();
-    } except Exception as e {
-        api_key_err: str = str(e);
-    }
-    api_key: str = os.environ.get("GEMINI_API_KEY", os.environ.get("LLM_API_KEY", ""));
-    return Model(model_name="gemini/gemini-2.0-flash-lite", api_key=api_key);
-}
-
-glob llm: Model = _get_llm();
+glob llm: Model = Model(model_name="jac_ai/gemini-2.0-flash-lite", api_key="AQ.Ab8RN6JeGqVkKfpLwuM7YymbuYSnq-PF3CtE5tfv1kDwL-uX7A");
 
 # ==== DATA NODES ====
 
