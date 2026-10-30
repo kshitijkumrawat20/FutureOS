@@ -4,7 +4,18 @@ import json;
 import from urllib.request { urlopen, Request }
 import from urllib.parse { urlencode, quote_plus }
 
-glob llm: Model = Model(model_name="gemini/gemini-2.5-flash", api_key="AQ.Ab8RN6JeGqVkKfpLwuM7YymbuYSnq-PF3CtE5tfv1kDwL-uX7A");
+glob llm: Model = Model(
+    model_name=os.getenv("NEBIUS_MODEL", "nvidia/nemotron-3-super-120b-a12b"),
+    api_key=os.getenv("NEBIUS_API_KEY", ""),
+    config={
+        "api_base": os.getenv(
+            "NEBIUS_TOKEN_FACTORY_CHAT_COMPLETIONS_URL",
+            "https://api.tokenfactory.us-central1.nebius.com/v1/chat/completions"
+        ),
+        "http_client": True,
+        "ca_bundle": True
+    }
+);
 
 # ==== DATA NODES ====
 
@@ -367,6 +378,7 @@ async def:priv agent_generate_missions(goal_id: str, goal_title: str, goal_descr
     log_agent("Planner", "Generating missions for goal", goal_title);
     try {
         plan = await ai_plan_missions(goal_title, goal_description, timeline);
+        log_agent("Nebius Token Factory", "Nemotron inference completed", os.getenv("NEBIUS_MODEL", "nvidia/nemotron-3-super-120b-a12b"));
         missions_list = plan.missions;
         tags_list = plan.tags;
         diffs_list = plan.difficulties;
@@ -394,7 +406,7 @@ async def:priv agent_generate_missions(goal_id: str, goal_title: str, goal_descr
             m = (root ++> Mission(title=str(t["title"]), difficulty=str(t["difficulty"]), xp=int(t["xp"]), tag=str(t["tag"]), goal_id=goal_id, done=False))[0];
             created = created + [m];
         }
-        log_agent("Planner", "Smart templates used — " + str(len(created)) + " missions created", goal_title);
+        log_agent("Planner", "Nemotron request failed; deterministic templates used — " + str(len(created)) + " missions created", goal_title);
     }
     log_agent("Execution", "Mission queue loaded with " + str(len(created)) + " tasks", goal_title);
     return created;
@@ -417,6 +429,7 @@ async def:priv agent_get_insights(goal_id: str) -> InsightReport {
     log_agent("Analytics", "Generating insights for", goal_title);
     try {
         insight_result: InsightReport = await ai_generate_insights(goal_title, timeline, progress, len(done_missions), len(missions), 7);
+        log_agent("Nebius Token Factory", "Nemotron inference completed", os.getenv("NEBIUS_MODEL", "nvidia/nemotron-3-super-120b-a12b"));
         log_agent("Coach", "AI insights delivered", goal_title);
         return insight_result;
     } except Exception as ex {
@@ -438,7 +451,7 @@ async def:priv agent_get_insights(goal_id: str) -> InsightReport {
             "Consistency is key — try to complete at least 1 mission per day.",
             "Focus on high-XP missions first to maximize your learning velocity."
         ];
-        log_agent("Coach", "Rule-based insights generated", goal_title);
+        log_agent("Coach", "Nemotron request failed; rule-based insights generated", goal_title);
         return InsightReport(
             insights=fallback_insights,
             coach_message="You're making progress on " + goal_title + ". Stay consistent and trust the process!",
@@ -462,10 +475,11 @@ async def:priv agent_get_strategy(goal_id: str) -> StrategyReport {
     log_agent("Planner", "Building strategy for", goal_title);
     try {
         strategy_result: StrategyReport = await ai_build_strategy(goal_title, goal_description, timeline);
+        log_agent("Nebius Token Factory", "Nemotron inference completed", os.getenv("NEBIUS_MODEL", "nvidia/nemotron-3-super-120b-a12b"));
         log_agent("Research", "Strategy resources curated", goal_title);
         return strategy_result;
     } except Exception as ex {
-        log_agent("Planner", "Smart strategy template applied", goal_title);
+        log_agent("Planner", "Nemotron request failed; deterministic strategy template applied", goal_title);
         return StrategyReport(
             milestones=["Foundation & Setup", "Core Skills Development", "Project Building", "Portfolio & Applications"],
             weekly_focus="Focus on completing your daily missions consistently. Small daily progress compounds into massive results.",
