@@ -1,4 +1,4 @@
-import from byllm.lib { Model }
+import from jaclang.byllm.lib { Model }
 import os;
 import json;
 import from urllib.request { urlopen, Request }
