@@ -76,7 +76,7 @@ The application reads these variables:
 | `NEBIUS_MODEL` | `nvidia/Nemotron-3_5-Lightning` | Token Factory model ID |
 | `NEBIUS_TOKEN_FACTORY_CHAT_COMPLETIONS_URL` | `https://api.tokenfactory.nebius.com/v1/chat/completions` | Full chat-completions endpoint |
 
-The endpoint default is the Nebius US Central Token Factory endpoint. Set the environment variable to the endpoint shown in your Nebius console if your account uses a different regional URL.
+The endpoint default is Nebius' current global Token Factory chat-completions API. Override it only if your Token Factory account documentation specifies another endpoint.
 
 ### 3. Verify real Nemotron inference
 
@@ -111,7 +111,7 @@ Keep the public demo video under three minutes. Show the working application and
 
 ## Existing-project update for this hackathon
 
-FutureOS existed before the hackathon submission period. The hackathon-specific update is the migration of the LLM-backed Planner, Coach/Analytics, and Strategy workflows from the earlier provider configuration to NVIDIA Nemotron 3 Super served by Nebius Token Factory. The update also adds environment-based secret handling, a direct inference smoke test, and activity-feed events that distinguish successful hosted inference from local deterministic fallback behavior.
+FutureOS existed before the hackathon submission period. The hackathon-specific update is the migration of the LLM-backed Planner, Coach/Analytics, and Strategy workflows from the earlier provider configuration to NVIDIA Nemotron 3.5 Lightning served by Nebius Token Factory. The update also adds environment-based secret handling, a direct inference smoke test, and activity-feed events that distinguish successful hosted inference from local deterministic fallback behavior.
 
 ## Security
 
