@@ -4,7 +4,7 @@
 
 **Hackathon track:** Personal AI  
 **Hackathon infrastructure:** Nebius Token Factory  
-**NVIDIA open model:** NVIDIA Nemotron 3 Super 120B A12B  
+**NVIDIA open model:** NVIDIA Nemotron 3.5 Lightning  
 **Application framework:** Jac / byLLM
 
 ## What it does
@@ -26,13 +26,13 @@ FutureOS uses the OpenAI-compatible Nebius Token Factory chat-completions API th
 
 Default model:
 
-`nvidia/nemotron-3-super-120b-a12b`
+`nvidia/Nemotron-3_5-Lightning`
 
 Default endpoint:
 
-`https://api.tokenfactory.us-central1.nebius.com/v1/chat/completions`
+`https://api.tokenfactory.nebius.com/v1/chat/completions`
 
-The model ID and endpoint can be overridden with environment variables. The application records a `Nebius Token Factory` agent event after a successful model response. If a model call fails, existing deterministic fallbacks keep the rest of the app usable; those fallback events are explicitly labelled so they are not confused with Nemotron inference.
+The default is Nemotron 3.5 Lightning, a current-generation NVIDIA model listed by Nebius for agentic reasoning, coding, and tool use. The model ID and endpoint can be overridden with environment variables. The application records a `Nebius Token Factory` agent event after a successful model response. If a model call fails, existing deterministic fallbacks keep the rest of the app usable; those fallback events are explicitly labelled so they are not confused with Nemotron inference.
 
 ## Run locally
 
@@ -73,8 +73,8 @@ The application reads these variables:
 | Variable | Default | Purpose |
 |---|---|---|
 | `NEBIUS_API_KEY` | empty | Token Factory API key |
-| `NEBIUS_MODEL` | `nvidia/nemotron-3-super-120b-a12b` | Token Factory model ID |
-| `NEBIUS_TOKEN_FACTORY_CHAT_COMPLETIONS_URL` | `https://api.tokenfactory.us-central1.nebius.com/v1/chat/completions` | Full chat-completions endpoint |
+| `NEBIUS_MODEL` | `nvidia/Nemotron-3_5-Lightning` | Token Factory model ID |
+| `NEBIUS_TOKEN_FACTORY_CHAT_COMPLETIONS_URL` | `https://api.tokenfactory.nebius.com/v1/chat/completions` | Full chat-completions endpoint |
 
 The endpoint default is the Nebius US Central Token Factory endpoint. Set the environment variable to the endpoint shown in your Nebius console if your account uses a different regional URL.
 
