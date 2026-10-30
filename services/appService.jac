@@ -5,12 +5,12 @@ import from urllib.request { urlopen, Request }
 import from urllib.parse { urlencode, quote_plus }
 
 glob llm: Model = Model(
-    model_name=os.getenv("NEBIUS_MODEL", "nvidia/nemotron-3-super-120b-a12b"),
+    model_name=os.getenv("NEBIUS_MODEL", "nvidia/Nemotron-3_5-Lightning"),
     api_key=os.getenv("NEBIUS_API_KEY", ""),
     config={
         "api_base": os.getenv(
             "NEBIUS_TOKEN_FACTORY_CHAT_COMPLETIONS_URL",
-            "https://api.tokenfactory.us-central1.nebius.com/v1/chat/completions"
+            "https://https://api.tokenfactory.nebius.com/v1/chat/completions"
         ),
         "http_client": True,
         "ca_bundle": True
@@ -378,7 +378,7 @@ async def:priv agent_generate_missions(goal_id: str, goal_title: str, goal_descr
     log_agent("Planner", "Generating missions for goal", goal_title);
     try {
         plan = await ai_plan_missions(goal_title, goal_description, timeline);
-        log_agent("Nebius Token Factory", "Nemotron inference completed", os.getenv("NEBIUS_MODEL", "nvidia/nemotron-3-super-120b-a12b"));
+        log_agent("Nebius Token Factory", "Nemotron inference completed", os.getenv("NEBIUS_MODEL", "nvidia/Nemotron-3_5-Lightning"));
         missions_list = plan.missions;
         tags_list = plan.tags;
         diffs_list = plan.difficulties;
@@ -429,7 +429,7 @@ async def:priv agent_get_insights(goal_id: str) -> InsightReport {
     log_agent("Analytics", "Generating insights for", goal_title);
     try {
         insight_result: InsightReport = await ai_generate_insights(goal_title, timeline, progress, len(done_missions), len(missions), 7);
-        log_agent("Nebius Token Factory", "Nemotron inference completed", os.getenv("NEBIUS_MODEL", "nvidia/nemotron-3-super-120b-a12b"));
+        log_agent("Nebius Token Factory", "Nemotron inference completed", os.getenv("NEBIUS_MODEL", "nvidia/Nemotron-3_5-Lightning"));
         log_agent("Coach", "AI insights delivered", goal_title);
         return insight_result;
     } except Exception as ex {
@@ -475,7 +475,7 @@ async def:priv agent_get_strategy(goal_id: str) -> StrategyReport {
     log_agent("Planner", "Building strategy for", goal_title);
     try {
         strategy_result: StrategyReport = await ai_build_strategy(goal_title, goal_description, timeline);
-        log_agent("Nebius Token Factory", "Nemotron inference completed", os.getenv("NEBIUS_MODEL", "nvidia/nemotron-3-super-120b-a12b"));
+        log_agent("Nebius Token Factory", "Nemotron inference completed", os.getenv("NEBIUS_MODEL", "nvidia/Nemotron-3_5-Lightning"));
         log_agent("Research", "Strategy resources curated", goal_title);
         return strategy_result;
     } except Exception as ex {
