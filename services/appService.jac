@@ -10,7 +10,7 @@ glob llm: Model = Model(
     config={
         "api_base": os.getenv(
             "NEBIUS_TOKEN_FACTORY_CHAT_COMPLETIONS_URL",
-            "https://https://api.tokenfactory.nebius.com/v1/chat/completions"
+            "https://api.tokenfactory.nebius.com/v1/chat/completions"
         ),
         "http_client": True,
         "ca_bundle": True
